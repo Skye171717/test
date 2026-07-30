@@ -200,17 +200,49 @@ with col1:
 
 with col2:
     smoking_history_selected = st.selectbox("Smoking History", smoking_histories)
-    bmi_selected = st.slider(
-        "BMI (Body Mass Index)", min_value=10.0, max_value=100.0, value=25.0, step=0.1
+
+    height_selected = st.number_input(
+        "Height (cm)", min_value=100.0, max_value=250.0, value=165.0, step=0.5
     )
+    weight_selected = st.number_input(
+        "Weight (kg)", min_value=20.0, max_value=250.0, value=65.0, step=0.5
+    )
+
+    ## BMI is calculated automatically from height and weight rather than
+    ## asking the user to know or enter it directly
+    bmi_selected = weight_selected / ((height_selected / 100) ** 2)
+    st.caption(f"Calculated BMI: {bmi_selected:.1f}")
+
     hba1c_selected = st.slider(
-        "HbA1c Level (%)", min_value=3.5, max_value=9.0, value=5.5, step=0.1
+        "HbA1c Level (%)", min_value=3.5, max_value=9.0, value=5.5, step=0.1,
+        help=(
+            "HbA1c reflects your average blood sugar level over the past "
+            "2 to 3 months, shown as a percentage. Roughly: below 5.7% is "
+            "normal, 5.7 to 6.4% is prediabetes, and 6.5% or above is in "
+            "the diabetes range."
+        )
     )
     glucose_selected = st.slider(
-        "Blood Glucose Level (mg/dL)", min_value=80, max_value=300, value=100, step=1
+        "Blood Glucose Level (mg/dL)", min_value=80, max_value=300, value=100, step=1,
+        help=(
+            "Blood glucose is the amount of sugar in your blood at the "
+            "moment it's measured. Unlike HbA1c, which shows a longer-term "
+            "average, this reflects a single point in time."
+        )
     )
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+with st.expander("What do HbA1c and blood glucose mean?"):
+    st.markdown(
+        "- **HbA1c (%)** - a blood test result showing your average blood "
+        "sugar over roughly the last 2 to 3 months. It's used because a "
+        "single blood sugar reading can vary a lot depending on when you "
+        "last ate, while HbA1c reflects a longer-term trend.\n"
+        "- **Blood glucose (mg/dL)** - the amount of sugar circulating in "
+        "your blood at the time of testing. It can rise and fall quickly, "
+        "for example after a meal, so it's a snapshot rather than an average."
+    )
 
 ## Predict button
 predict_clicked = st.button("Predict Diabetes Risk", use_container_width=True)
@@ -222,8 +254,10 @@ if predict_clicked:
 
     if age_selected <= 0:
         validation_errors.append("Age must be greater than 0.")
-    if bmi_selected <= 0:
-        validation_errors.append("BMI must be greater than 0.")
+    if height_selected <= 0:
+        validation_errors.append("Height must be greater than 0.")
+    if weight_selected <= 0:
+        validation_errors.append("Weight must be greater than 0.")
     if hba1c_selected <= 0:
         validation_errors.append("HbA1c level must be greater than 0.")
     if glucose_selected <= 0:

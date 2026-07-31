@@ -450,7 +450,7 @@ with st.expander("What do HbA1c and blood glucose mean, and where can I get test
         "- **HbA1c** is measured through a blood test ordered by a doctor "
         "- available at GP clinics, polyclinics, or through the "
         "**Screen for Life** national screening programme (subsidised "
-        "for eligible Singaporeans and PRs). Glucometers and test strips"
+        "for eligible Singaporeans and PRs). Glucometers and test strips "
         "can be purchased from pharmacies such as Guardian, Watsons, and Unity.\n"
         "- **Blood glucose** can also be tested at a clinic or polyclinic, "
         "or self-tested at home using a glucometer / blood glucose test "

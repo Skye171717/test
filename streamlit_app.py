@@ -113,15 +113,6 @@ div[data-baseweb="menu"] li {
     margin-bottom: 1.2rem;
 }
 
-.section-card {
-    background-color: #ffffff;
-    border-radius: 14px;
-    padding: 1.4rem 1.6rem;
-    box-shadow: 0 2px 10px rgba(27, 58, 87, 0.07);
-    border: 1px solid #e7edf3;
-    margin-bottom: 1.4rem;
-}
-
 .section-heading {
     font-size: 1.05rem;
     font-weight: 600;
@@ -342,69 +333,68 @@ genders = ["Female", "Male"]
 smoking_histories = ["Past Smoker", "Current Smoker", "Non-Smoker", "Prefer Not to Say"]
 
 ## --------------------------------------------------------------------------
-## Patient information - grouped in a card
+## Patient information - grouped in a bordered container
 ## --------------------------------------------------------------------------
-st.markdown('<div class="section-card">', unsafe_allow_html=True)
-st.markdown('<div class="section-heading">Patient Information</div>', unsafe_allow_html=True)
+patient_info_container = st.container(border=True)
+with patient_info_container:
+    st.markdown('<div class="section-heading">Patient Information</div>', unsafe_allow_html=True)
 
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-with col1:
-    gender_selected = st.selectbox("Gender", genders)
-    age_selected = st.number_input(
-        "Age (years)", min_value=0, max_value=120, value=30, step=1,
-        help=(
-            "The prediction model was trained on individuals aged up to "
-            "80. Results for ages above 80 are shown, but treat them as "
-            "an extrapolation with more uncertainty."
+    with col1:
+        gender_selected = st.selectbox("Gender", genders)
+        age_selected = st.number_input(
+            "Age (years)", min_value=0, max_value=120, value=30, step=1,
+            help=(
+                "The prediction model was trained on individuals aged up to "
+                "80. Results for ages above 80 are shown, but treat them as "
+                "an extrapolation with more uncertainty."
+            )
         )
-    )
-    if age_selected > 80:
-        st.caption(
-            "Note: this model was trained on data up to age 80. "
-            "Results above that age are less reliable."
+        if age_selected > 80:
+            st.caption(
+                "Note: this model was trained on data up to age 80. "
+                "Results above that age are less reliable."
+            )
+        hypertension_selected = st.radio(
+            "Does the patient have hypertension?", ["No", "Yes"], horizontal=True
         )
-    hypertension_selected = st.radio(
-        "Does the patient have hypertension?", ["No", "Yes"], horizontal=True
-    )
-    heart_disease_selected = st.radio(
-        "Does the patient have heart disease?", ["No", "Yes"], horizontal=True
-    )
-
-with col2:
-    smoking_history_selected = st.selectbox("Smoking History", smoking_histories)
-
-    height_selected = st.number_input(
-        "Height (cm)", min_value=100.0, max_value=250.0, value=165.0, step=0.5
-    )
-    weight_selected = st.number_input(
-        "Weight (kg)", min_value=20.0, max_value=250.0, value=65.0, step=0.5
-    )
-
-    ## BMI is calculated automatically from height and weight rather than
-    ## asking the user to know or enter it directly
-    bmi_selected = weight_selected / ((height_selected / 100) ** 2)
-    st.caption(f"Calculated BMI: {bmi_selected:.1f}")
-
-    hba1c_selected = st.slider(
-        "HbA1c Level (%)", min_value=3.5, max_value=9.0, value=5.5, step=0.1,
-        help=(
-            "HbA1c reflects your average blood sugar level over the past "
-            "2 to 3 months, shown as a percentage. Roughly: below 5.7% is "
-            "normal, 5.7 to 6.4% is prediabetes, and 6.5% or above is in "
-            "the diabetes range."
+        heart_disease_selected = st.radio(
+            "Does the patient have heart disease?", ["No", "Yes"], horizontal=True
         )
-    )
-    glucose_selected = st.slider(
-        "Blood Glucose Level (mg/dL)", min_value=80, max_value=300, value=100, step=1,
-        help=(
-            "Blood glucose is the amount of sugar in your blood at the "
-            "moment it's measured. Unlike HbA1c, which shows a longer-term "
-            "average, this reflects a single point in time."
-        )
-    )
 
-st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        smoking_history_selected = st.selectbox("Smoking History", smoking_histories)
+
+        height_selected = st.number_input(
+            "Height (cm)", min_value=100.0, max_value=250.0, value=165.0, step=0.5
+        )
+        weight_selected = st.number_input(
+            "Weight (kg)", min_value=20.0, max_value=250.0, value=65.0, step=0.5
+        )
+
+        ## BMI is calculated automatically from height and weight rather than
+        ## asking the user to know or enter it directly
+        bmi_selected = weight_selected / ((height_selected / 100) ** 2)
+        st.caption(f"Calculated BMI: {bmi_selected:.1f}")
+
+        hba1c_selected = st.slider(
+            "HbA1c Level (%)", min_value=3.5, max_value=9.0, value=5.5, step=0.1,
+            help=(
+                "HbA1c reflects your average blood sugar level over the past "
+                "2 to 3 months, shown as a percentage. Roughly: below 5.7% is "
+                "normal, 5.7 to 6.4% is prediabetes, and 6.5% or above is in "
+                "the diabetes range."
+            )
+        )
+        glucose_selected = st.slider(
+            "Blood Glucose Level (mg/dL)", min_value=80, max_value=300, value=100, step=1,
+            help=(
+                "Blood glucose is the amount of sugar in your blood at the "
+                "moment it's measured. Unlike HbA1c, which shows a longer-term "
+                "average, this reflects a single point in time."
+            )
+        )
 
 with st.expander("What do HbA1c and blood glucose mean, and where can I get tested?"):
     st.markdown(

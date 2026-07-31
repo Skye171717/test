@@ -11,13 +11,8 @@ st.set_page_config(
     layout="centered"
 )
 
-## --------------------------------------------------------------------------
-## Visual styling (colors, font, card layout) - no emojis, images used instead
-## Forces a consistent light appearance purely via CSS (no .streamlit/config.toml
-## needed): overrides Streamlit's internal theme variables, then also targets
-## the native widgets directly (selects, inputs, sliders, radios, labels) so
-## they stay legible regardless of the visitor's system dark-mode setting.
-## --------------------------------------------------------------------------
+
+## Visual styling (colors, font, card layout)
 st.markdown(textwrap.dedent("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
@@ -268,24 +263,44 @@ div.stButton > button:hover {
     background-color: #2c5578;
     color: #ffffff;
 }
+
+div.stButton > button:disabled {
+    background-color: #cbd5df;
+    color: #ffffff;
+    cursor: not-allowed;
+}
+
+/* Secondary buttons (e.g. Reset), rendered inside a horizontal block, get a
+   lighter outline look so they don't compete with the primary Predict button */
+div[data-testid="stHorizontalBlock"] div.stButton > button {
+    background-color: #ffffff;
+    color: #1b3a57;
+    border: 1px solid #cbd7e3;
+    font-weight: 500;
+}
+
+div[data-testid="stHorizontalBlock"] div.stButton > button:hover {
+    background-color: #f2f7fb;
+    color: #1b3a57;
+}
 </style>
 """), unsafe_allow_html=True)
+
 
 ## Load trained model
 @st.cache_resource
 def load_model():
     try:
         return joblib.load("decision_tree_model.pkl")
-    except FileNotFoundError:
+    except Exception:
         return None
 
-model = load_model()
+with st.spinner("Loading model..."):
+    model = load_model()
 
-## --------------------------------------------------------------------------
+
 ## Page header
-## An optional banner image can be dropped alongside this script.
-## If it isn't present, the app simply skips it - no broken image, no error.
-## --------------------------------------------------------------------------
+## An optional banner image can be dropped alongside this script. If it isn't present, the app skips it
 banner_path = "banner.png"
 if os.path.exists(banner_path):
     st.image(banner_path, use_container_width=True)
@@ -297,12 +312,15 @@ st.markdown(
 )
 
 if model is None:
-    st.error("Could not find `decision_tree_model.pkl`. Please place the model file alongside this script.")
+    st.error(
+        "Could not load the prediction model (`decision_tree_model.pkl`). "
+        "Please make sure the file exists alongside this script and was "
+        "saved with a compatible scikit-learn version."
+    )
     st.stop()
 
-## --------------------------------------------------------------------------
-## Sidebar - restyled into short, scannable cards instead of one text block
-## --------------------------------------------------------------------------
+
+## Sidebar
 with st.sidebar:
     logo_path = "logo.png"
     if os.path.exists(logo_path):
@@ -313,7 +331,7 @@ with st.sidebar:
             <div class="sidebar-card-heading">How it works</div>
             <p>Fill in the patient details, then select
             <strong>Predict Diabetes Risk</strong> to get an instant
-            screening result and estimated probability.</p>
+            screening result.</p>
         </div>
         <div class="sidebar-card">
             <div class="sidebar-card-heading">About the model</div>
@@ -332,9 +350,31 @@ with st.sidebar:
 genders = ["Female", "Male"]
 smoking_histories = ["Past Smoker", "Current Smoker", "Non-Smoker", "Prefer Not to Say"]
 
-## --------------------------------------------------------------------------
-## Patient information - grouped in a bordered container
-## --------------------------------------------------------------------------
+
+## Default values
+DEFAULT_VALUES = {
+    "gender": "Female",
+    "age": 30,
+    "hypertension": "No",
+    "heart_disease": "No",
+    "smoking_history": "Non-Smoker",
+    "height": 165.0,
+    "weight": 65.0,
+    "hba1c": 5.5,
+    "glucose": 100,
+}
+
+for _key, _default in DEFAULT_VALUES.items():
+    st.session_state.setdefault(_key, _default)
+
+reset_col1, reset_col2 = st.columns([3, 1])
+with reset_col2:
+    if st.button("Reset to Defaults", use_container_width=True):
+        st.session_state.update(DEFAULT_VALUES)
+        st.rerun()
+
+
+## Patient information grouped in a bordered container
 patient_info_container = st.container(border=True)
 with patient_info_container:
     st.markdown('<div class="section-heading">Patient Information</div>', unsafe_allow_html=True)
@@ -342,9 +382,9 @@ with patient_info_container:
     col1, col2 = st.columns(2)
 
     with col1:
-        gender_selected = st.selectbox("Gender", genders)
+        gender_selected = st.selectbox("Gender", genders, key="gender")
         age_selected = st.number_input(
-            "Age (years)", min_value=0, max_value=120, value=30, step=1,
+            "Age (years)", min_value=0, max_value=120, step=1, key="age",
             help=(
                 "The prediction model was trained on individuals aged up to "
                 "80. Results for ages above 80 are shown, but treat them as "
@@ -357,20 +397,20 @@ with patient_info_container:
                 "Results above that age are less reliable."
             )
         hypertension_selected = st.radio(
-            "Does the patient have hypertension?", ["No", "Yes"], horizontal=True
+            "Does the patient have hypertension?", ["No", "Yes"], horizontal=True, key="hypertension"
         )
         heart_disease_selected = st.radio(
-            "Does the patient have heart disease?", ["No", "Yes"], horizontal=True
+            "Does the patient have heart disease?", ["No", "Yes"], horizontal=True, key="heart_disease"
         )
 
     with col2:
-        smoking_history_selected = st.selectbox("Smoking History", smoking_histories)
+        smoking_history_selected = st.selectbox("Smoking History", smoking_histories, key="smoking_history")
 
         height_selected = st.number_input(
-            "Height (cm)", min_value=100.0, max_value=250.0, value=165.0, step=0.5
+            "Height (cm)", min_value=100.0, max_value=250.0, step=0.5, key="height"
         )
         weight_selected = st.number_input(
-            "Weight (kg)", min_value=20.0, max_value=250.0, value=65.0, step=0.5
+            "Weight (kg)", min_value=20.0, max_value=250.0, step=0.5, key="weight"
         )
 
         ## BMI is calculated automatically from height and weight rather than
@@ -379,7 +419,7 @@ with patient_info_container:
         st.caption(f"Calculated BMI: {bmi_selected:.1f}")
 
         hba1c_selected = st.slider(
-            "HbA1c Level (%)", min_value=3.5, max_value=9.0, value=5.5, step=0.1,
+            "HbA1c Level (%)", min_value=3.5, max_value=9.0, step=0.1, key="hba1c",
             help=(
                 "HbA1c reflects your average blood sugar level over the past "
                 "2 to 3 months, shown as a percentage. Roughly: below 5.7% is "
@@ -388,7 +428,7 @@ with patient_info_container:
             )
         )
         glucose_selected = st.slider(
-            "Blood Glucose Level (mg/dL)", min_value=80, max_value=300, value=100, step=1,
+            "Blood Glucose Level (mg/dL)", min_value=80, max_value=300, step=1, key="glucose",
             help=(
                 "Blood glucose is the amount of sugar in your blood at the "
                 "moment it's measured. Unlike HbA1c, which shows a longer-term "
@@ -406,12 +446,12 @@ with st.expander("What do HbA1c and blood glucose mean, and where can I get test
         "your blood at the time of testing. It can rise and fall quickly, "
         "for example after a meal, so it's a snapshot rather than an average.\n"
         "\n"
-        "**Getting these readings in Singapore**\n"
+        "**Getting these readings**\n"
         "- **HbA1c** is measured through a blood test ordered by a doctor "
         "- available at GP clinics, polyclinics, or through the "
         "**Screen for Life** national screening programme (subsidised "
-        "for eligible Singaporeans and PRs). It is not typically "
-        "available as a home self-test.\n"
+        "for eligible Singaporeans and PRs). Glucometers and test strips"
+        "can be purchased from pharmacies such as Guardian, Watsons, and Unity.\n"
         "- **Blood glucose** can also be tested at a clinic or polyclinic, "
         "or self-tested at home using a glucometer / blood glucose test "
         "kit, available at pharmacies such as Guardian, Watsons and "
@@ -419,199 +459,192 @@ with st.expander("What do HbA1c and blood glucose mean, and where can I get test
         "check, but a clinic test is more reliable for medical decisions."
     )
 
-## Predict button
-predict_clicked = st.button("Predict Diabetes Risk", use_container_width=True)
+## Predict button which is disabled until all inputs are valid
+validation_errors = []
+
+if age_selected <= 0:
+    validation_errors.append("Age must be greater than 0.")
+if height_selected <= 0:
+    validation_errors.append("Height must be greater than 0.")
+if weight_selected <= 0:
+    validation_errors.append("Weight must be greater than 0.")
+if hba1c_selected <= 0:
+    validation_errors.append("HbA1c level must be greater than 0.")
+if glucose_selected <= 0:
+    validation_errors.append("Blood glucose level must be greater than 0.")
+
+inputs_valid = len(validation_errors) == 0
+
+if not inputs_valid:
+    for err in validation_errors:
+        st.error(err)
+
+predict_clicked = st.button(
+    "Predict Diabetes Risk",
+    use_container_width=True,
+    disabled=not inputs_valid
+)
 
 if predict_clicked:
+    try:
+        with st.spinner("Running prediction..."):
 
-    ## Basic input validation with user-facing error messages
-    validation_errors = []
+            ## Map Yes/No radio inputs back to the 0/1 encoding used in training
+            hypertension_value = 1 if hypertension_selected == "Yes" else 0
+            heart_disease_value = 1 if heart_disease_selected == "Yes" else 0
 
-    if age_selected <= 0:
-        validation_errors.append("Age must be greater than 0.")
-    if height_selected <= 0:
-        validation_errors.append("Height must be greater than 0.")
-    if weight_selected <= 0:
-        validation_errors.append("Weight must be greater than 0.")
-    if hba1c_selected <= 0:
-        validation_errors.append("HbA1c level must be greater than 0.")
-    if glucose_selected <= 0:
-        validation_errors.append("Blood glucose level must be greater than 0.")
+            ## Build a single-row DataFrame from the user inputs
+            df_input = pd.DataFrame({
+                "gender": [gender_selected],
+                "age": [age_selected],
+                "hypertension": [hypertension_value],
+                "heart_disease": [heart_disease_value],
+                "smoking_history": [smoking_history_selected],
+                "bmi": [bmi_selected],
+                "HbA1c_level": [hba1c_selected],
+                "blood_glucose_level": [glucose_selected],
+            })
 
-    if validation_errors:
-        for err in validation_errors:
-            st.error(err)
-    else:
-        try:
-            with st.spinner("Running prediction..."):
-
-                ## Map Yes/No radio inputs back to the 0/1 encoding used in training
-                hypertension_value = 1 if hypertension_selected == "Yes" else 0
-                heart_disease_value = 1 if heart_disease_selected == "Yes" else 0
-
-                ## Build a single-row DataFrame from the user inputs
-                df_input = pd.DataFrame({
-                    "gender": [gender_selected],
-                    "age": [age_selected],
-                    "hypertension": [hypertension_value],
-                    "heart_disease": [heart_disease_value],
-                    "smoking_history": [smoking_history_selected],
-                    "bmi": [bmi_selected],
-                    "HbA1c_level": [hba1c_selected],
-                    "blood_glucose_level": [glucose_selected],
-                })
-
-                ## One-hot encode categorical columns
-                df_input = pd.get_dummies(
-                    df_input, columns=["gender", "smoking_history"], drop_first=True
-                )
-
-                ## Align columns with the features the model was trained on
-                df_input = df_input.reindex(
-                    columns=model.feature_names_in_, fill_value=0
-                )
-
-                ## Generate prediction
-                prediction = model.predict(df_input)[0]
-
-            ## ------------------------------------------------------------------
-            ## Quick recap of what was entered, so the result is easy to trace
-            ## back to the inputs
-            ## ------------------------------------------------------------------
-            summary_html = textwrap.dedent(f"""
-            <div class="summary-row">
-                <div class="summary-chip">Age: {age_selected}</div>
-                <div class="summary-chip">Gender: {gender_selected}</div>
-                <div class="summary-chip">BMI: {bmi_selected:.1f}</div>
-                <div class="summary-chip">HbA1c: {hba1c_selected:.1f}%</div>
-                <div class="summary-chip">Glucose: {glucose_selected} mg/dL</div>
-            </div>
-            """).strip()
-            st.markdown(summary_html, unsafe_allow_html=True)
-
-            ## ------------------------------------------------------------------
-            ## Display results as a single styled card (color communicates risk
-            ## instead of an emoji). No probability percentage is shown, since
-            ## this model's predict_proba only ever returns 0% or 100% - see
-            ## the notes in the sidebar / expander for why.
-            ## ------------------------------------------------------------------
-            risk_class = "high-risk" if prediction == 1 else "low-risk"
-            risk_text_class = "high-risk-text" if prediction == 1 else "low-risk-text"
-
-            result_message = (
-                "The model predicts this patient may have diabetes."
-                if prediction == 1
-                else "The model predicts this patient is unlikely to have diabetes."
+            ## One-hot encode categorical columns
+            df_input = pd.get_dummies(
+                df_input, columns=["gender", "smoking_history"], drop_first=True
             )
 
-            result_html = textwrap.dedent(f"""
-            <div class="result-card {risk_class}">
-                <div class="result-heading {risk_text_class}">{result_message}</div>
-                <div class="result-caption">
-                    This prediction is generated by a machine learning model and
-                    should not be used as a substitute for professional medical diagnosis.
-                </div>
+            ## Align columns with the features the model was trained on
+            df_input = df_input.reindex(
+                columns=model.feature_names_in_, fill_value=0
+            )
+
+            ## Generate prediction
+            prediction = model.predict(df_input)[0]
+
+        
+        ## Quick recap of what was entered
+        summary_html = textwrap.dedent(f"""
+        <div class="summary-row">
+            <div class="summary-chip">Age: {age_selected}</div>
+            <div class="summary-chip">Gender: {gender_selected}</div>
+            <div class="summary-chip">BMI: {bmi_selected:.1f}</div>
+            <div class="summary-chip">HbA1c: {hba1c_selected:.1f}%</div>
+            <div class="summary-chip">Glucose: {glucose_selected} mg/dL</div>
+        </div>
+        """).strip()
+        st.markdown(summary_html, unsafe_allow_html=True)
+
+       
+        ## Display results as a single styled card 
+        risk_class = "high-risk" if prediction == 1 else "low-risk"
+        risk_text_class = "high-risk-text" if prediction == 1 else "low-risk-text"
+
+        result_message = (
+            "The model predicts this patient may have diabetes."
+            if prediction == 1
+            else "The model predicts this patient is unlikely to have diabetes."
+        )
+
+        result_html = textwrap.dedent(f"""
+        <div class="result-card {risk_class}">
+            <div class="result-heading {risk_text_class}">{result_message}</div>
+            <div class="result-caption">
+                This prediction is generated by a machine learning model and
+                should not be used as a substitute for professional medical diagnosis.
             </div>
-            """).strip()
-            st.markdown(result_html, unsafe_allow_html=True)
+        </div>
+        """).strip()
+        st.markdown(result_html, unsafe_allow_html=True)
 
-            ## ------------------------------------------------------------------
-            ## Contributing risk factors - flagged against standard clinical
-            ## reference ranges (not derived from the model's internal decision
-            ## logic). Ordered roughly by the feature importance findings in
-            ## the accompanying notebook: HbA1c and glucose first, then BMI
-            ## and age, then hypertension and heart disease.
-            ## ------------------------------------------------------------------
-            flagged_factors = []
+        
+        ## Contributing risk factors 
+        ## Flagged against standard clinical reference ranges
+        flagged_factors = []
 
-            if hba1c_selected >= 6.5:
-                flagged_factors.append(
-                    f"HbA1c level ({hba1c_selected:.1f}%) is in the diabetes range (6.5% or above)."
-                )
-            elif hba1c_selected >= 5.7:
-                flagged_factors.append(
-                    f"HbA1c level ({hba1c_selected:.1f}%) is in the prediabetes range (5.7% to 6.4%)."
-                )
+        if hba1c_selected >= 6.5:
+            flagged_factors.append(
+                f"HbA1c level ({hba1c_selected:.1f}%) is in the diabetes range (6.5% or above)."
+            )
+        elif hba1c_selected >= 5.7:
+            flagged_factors.append(
+                f"HbA1c level ({hba1c_selected:.1f}%) is in the prediabetes range (5.7% to 6.4%)."
+            )
 
-            if glucose_selected >= 126:
-                flagged_factors.append(
-                    f"Blood glucose level ({glucose_selected} mg/dL) is above the typical "
-                    "fasting threshold of 126 mg/dL."
-                )
+        if glucose_selected >= 126:
+            flagged_factors.append(
+                f"Blood glucose level ({glucose_selected} mg/dL) is above the typical "
+                "fasting threshold of 126 mg/dL."
+            )
 
-            if bmi_selected >= 27.5:
-                flagged_factors.append(
-                    f"BMI ({bmi_selected:.1f}) is in the obese range for Asian populations (27.5 or above)."
-                )
-            elif bmi_selected >= 23:
-                flagged_factors.append(
-                    f"BMI ({bmi_selected:.1f}) is in the overweight range for Asian populations (23 to 27.4)."
-                )
+        if bmi_selected >= 27.5:
+            flagged_factors.append(
+                f"BMI ({bmi_selected:.1f}) is in the obese range for Singaporean populations (27.5 or above)."
+            )
+        elif bmi_selected >= 23:
+            flagged_factors.append(
+                f"BMI ({bmi_selected:.1f}) is in the overweight range for Singaporean populations (23 to 27.4)."
+            )
 
-            if age_selected >= 45:
-                flagged_factors.append(
-                    f"Age ({age_selected}) is 45 or above, an age group associated with higher diabetes risk."
-                )
+        if age_selected >= 45:
+            flagged_factors.append(
+                f"Age ({age_selected}) is 45 or above, an age group associated with higher diabetes risk."
+            )
 
-            if hypertension_value == 1:
-                flagged_factors.append("Hypertension is present, which is associated with higher diabetes risk.")
+        if hypertension_value == 1:
+            flagged_factors.append("Hypertension is present, which is associated with higher diabetes risk.")
 
-            if heart_disease_value == 1:
-                flagged_factors.append("Heart disease is present, which is associated with higher diabetes risk.")
+        if heart_disease_value == 1:
+            flagged_factors.append("Heart disease is present, which is associated with higher diabetes risk.")
 
-            if flagged_factors:
-                factors_list_html = "".join(f"<li>{factor}</li>" for factor in flagged_factors)
-            else:
-                factors_list_html = "<li>No inputs fell outside typical healthy reference ranges.</li>"
+        if flagged_factors:
+            factors_list_html = "".join(f"<li>{factor}</li>" for factor in flagged_factors)
+        else:
+            factors_list_html = "<li>No inputs fell outside typical healthy reference ranges.</li>"
 
-            factors_html = textwrap.dedent(f"""
-            <div class="factors-card">
-                <div class="factors-heading">Contributing Risk Factors</div>
+        factors_html = textwrap.dedent(f"""
+        <div class="factors-card">
+            <div class="factors-heading">Contributing Risk Factors</div>
+            <ul>
+                {factors_list_html}
+            </ul>
+            <div class="factors-note">
+                Based on general clinical reference ranges, not a direct
+                breakdown of the model's own decision process.
+            </div>
+        </div>
+        """).strip()
+        st.markdown(factors_html, unsafe_allow_html=True)
+
+
+        ## What should I do next, guidance based on the risk level
+        if prediction == 1:
+            next_steps_html = textwrap.dedent("""
+            <div class="next-steps-card">
+                <div class="next-steps-heading">What should I do next?</div>
                 <ul>
-                    {factors_list_html}
+                    <li>Arrange a medical assessment with a doctor or
+                    polyclinic to confirm your diabetes status.</li>
+                    <li>Bring these results along to help guide the
+                    conversation with your healthcare provider.</li>
+                    <li>Avoid self-diagnosing or self-medicating based
+                    on this screening result alone.</li>
                 </ul>
-                <div class="factors-note">
-                    Based on general clinical reference ranges, not a direct
-                    breakdown of the model's own decision process.
-                </div>
             </div>
             """).strip()
-            st.markdown(factors_html, unsafe_allow_html=True)
+        else:
+            next_steps_html = textwrap.dedent("""
+            <div class="next-steps-card">
+                <div class="next-steps-heading">What should I do next?</div>
+                <ul>
+                    <li>Continue maintaining a healthy, balanced diet
+                    and regular physical activity.</li>
+                    <li>Go for routine health screenings, such as
+                    Screen for Life, as recommended for your age
+                    group.</li>
+                    <li>Keep an eye on changes in weight, thirst, or
+                    energy levels, and check in with a doctor if
+                    anything feels off.</li>
+                </ul>
+            </div>
+            """).strip()
+        st.markdown(next_steps_html, unsafe_allow_html=True)
 
-            ## ------------------------------------------------------------------
-            ## What should I do next - guidance tailored to the risk level
-            ## ------------------------------------------------------------------
-            if prediction == 1:
-                next_steps_html = textwrap.dedent("""
-                <div class="next-steps-card">
-                    <div class="next-steps-heading">What should I do next?</div>
-                    <ul>
-                        <li>Arrange a medical assessment with a doctor or
-                        polyclinic to confirm your diabetes status.</li>
-                        <li>Bring these results along to help guide the
-                        conversation with your healthcare provider.</li>
-                        <li>Avoid self-diagnosing or self-medicating based
-                        on this screening result alone.</li>
-                    </ul>
-                </div>
-                """).strip()
-            else:
-                next_steps_html = textwrap.dedent("""
-                <div class="next-steps-card">
-                    <div class="next-steps-heading">What should I do next?</div>
-                    <ul>
-                        <li>Continue maintaining a healthy, balanced diet
-                        and regular physical activity.</li>
-                        <li>Go for routine health screenings, such as
-                        Screen for Life, as recommended for your age
-                        group.</li>
-                        <li>Keep an eye on changes in weight, thirst, or
-                        energy levels, and check in with a doctor if
-                        anything feels off.</li>
-                    </ul>
-                </div>
-                """).strip()
-            st.markdown(next_steps_html, unsafe_allow_html=True)
-
-        except Exception as e:
-            st.error(f"Something went wrong while generating the prediction. Details: {e}")
+    except Exception as e:
+        st.error(f"Something went wrong while generating the prediction. Details: {e}")

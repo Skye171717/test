@@ -13,13 +13,23 @@ st.set_page_config(
 
 ## --------------------------------------------------------------------------
 ## Visual styling (colors, font, card layout) - no emojis, images used instead
-## The color palette here is intentionally also fixed in .streamlit/config.toml
-## so the app always renders the same, regardless of the visitor's system
-## dark-mode setting.
+## Forces a consistent light appearance purely via CSS (no .streamlit/config.toml
+## needed): overrides Streamlit's internal theme variables, then also targets
+## the native widgets directly (selects, inputs, sliders, radios, labels) so
+## they stay legible regardless of the visitor's system dark-mode setting.
 ## --------------------------------------------------------------------------
 st.markdown(textwrap.dedent("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* Override Streamlit's internal theme variables so native widgets that
+   read from them (instead of hardcoded colors) fall back to a light theme */
+:root, .stApp {
+    --primary-color: #1b3a57;
+    --background-color: #ffffff;
+    --secondary-background-color: #eef5fb;
+    --text-color: #1b3a57;
+}
 
 html, body, [class*="css"]  {
     font-family: 'Poppins', sans-serif;
@@ -27,6 +37,67 @@ html, body, [class*="css"]  {
 
 .stApp {
     background: linear-gradient(135deg, #eef5fb 0%, #ffffff 45%);
+    color: #1b3a57;
+}
+
+/* Widget labels (e.g. "Gender", "Age (years)") */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] label,
+.stApp label {
+    color: #1b3a57 !important;
+}
+
+/* Selectbox */
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+    background-color: #ffffff !important;
+    color: #1b3a57 !important;
+    border: 1px solid #cbd7e3 !important;
+}
+
+/* Selectbox dropdown menu (rendered in a portal, needs its own rule) */
+div[data-baseweb="popover"] ul,
+div[data-baseweb="menu"] {
+    background-color: #ffffff !important;
+}
+
+div[data-baseweb="popover"] li,
+div[data-baseweb="menu"] li {
+    color: #1b3a57 !important;
+}
+
+/* Number inputs */
+[data-testid="stNumberInput"] input {
+    background-color: #ffffff !important;
+    color: #1b3a57 !important;
+    border: 1px solid #cbd7e3 !important;
+}
+
+[data-testid="stNumberInput"] button {
+    background-color: #f2f7fb !important;
+    color: #1b3a57 !important;
+}
+
+/* Sliders */
+[data-testid="stSlider"] [data-testid="stTickBarMin"],
+[data-testid="stSlider"] [data-testid="stTickBarMax"],
+[data-testid="stSlider"] div[data-baseweb="slider"] > div {
+    color: #1b3a57 !important;
+}
+
+/* Radio buttons */
+[data-testid="stRadio"] label p {
+    color: #1b3a57 !important;
+}
+
+/* Expander */
+[data-testid="stExpander"] {
+    background-color: #ffffff !important;
+    border: 1px solid #e7edf3 !important;
+    border-radius: 10px !important;
+}
+
+[data-testid="stExpander"] p, [data-testid="stExpander"] li {
+    color: #3a4a5a !important;
 }
 
 .app-title {
@@ -447,6 +518,12 @@ if predict_clicked:
                 </div>
                 <div class="progress-track">
                     <div class="progress-fill {fill_class}" style="width:{pct:.1f}%;"></div>
+                </div>
+                <div style="margin-top:0.4rem; font-size:0.75rem; color:#8092a3;">
+                    This model tends to report 0% or 100% rather than a
+                    graded percentage, since it makes a decision based on
+                    matching health profiles rather than an averaged
+                    estimate.
                 </div>
                 """).strip()
 

@@ -1,4 +1,5 @@
 import os
+import textwrap
 import joblib
 import streamlit as st
 import numpy as np
@@ -12,127 +13,191 @@ st.set_page_config(
 
 ## --------------------------------------------------------------------------
 ## Visual styling (colors, font, card layout) - no emojis, images used instead
+## The color palette here is intentionally also fixed in .streamlit/config.toml
+## so the app always renders the same, regardless of the visitor's system
+## dark-mode setting.
 ## --------------------------------------------------------------------------
-st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+st.markdown(textwrap.dedent("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-    html, body, [class*="css"]  {
-        font-family: 'Poppins', sans-serif;
-    }
+html, body, [class*="css"]  {
+    font-family: 'Poppins', sans-serif;
+}
 
-    .stApp {
-        background: linear-gradient(135deg, #eef5fb 0%, #ffffff 45%);
-    }
+.stApp {
+    background: linear-gradient(135deg, #eef5fb 0%, #ffffff 45%);
+}
 
-    .app-title {
-        font-size: 2.1rem;
-        font-weight: 700;
-        color: #1b3a57;
-        margin-bottom: 0.1rem;
-    }
+.app-title {
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: #1b3a57;
+    margin-bottom: 0.1rem;
+}
 
-    .app-subtitle {
-        color: #55677a;
-        font-size: 1rem;
-        margin-bottom: 1.2rem;
-    }
+.app-subtitle {
+    color: #55677a;
+    font-size: 1rem;
+    margin-bottom: 1.2rem;
+}
 
-    .section-card {
-        background-color: #ffffff;
-        border-radius: 14px;
-        padding: 1.4rem 1.6rem;
-        box-shadow: 0 2px 10px rgba(27, 58, 87, 0.07);
-        border: 1px solid #e7edf3;
-        margin-bottom: 1.4rem;
-    }
+.section-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    padding: 1.4rem 1.6rem;
+    box-shadow: 0 2px 10px rgba(27, 58, 87, 0.07);
+    border: 1px solid #e7edf3;
+    margin-bottom: 1.4rem;
+}
 
-    .section-heading {
-        font-size: 1.05rem;
-        font-weight: 600;
-        color: #1b3a57;
-        margin-bottom: 0.8rem;
-        border-left: 4px solid #4a90c4;
-        padding-left: 0.6rem;
-    }
+.section-heading {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1b3a57;
+    margin-bottom: 0.8rem;
+    border-left: 4px solid #4a90c4;
+    padding-left: 0.6rem;
+}
 
-    .result-card {
-        border-radius: 14px;
-        padding: 1.4rem 1.6rem;
-        margin-top: 0.6rem;
-        border: 1px solid;
-    }
+.summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
 
-    .result-card.low-risk {
-        background-color: #eaf7ef;
-        border-color: #bfe3cc;
-    }
+.summary-chip {
+    background-color: #f2f7fb;
+    border: 1px solid #dce7f0;
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.82rem;
+    color: #1b3a57;
+}
 
-    .result-card.high-risk {
-        background-color: #fbebea;
-        border-color: #f2c4c1;
-    }
+.result-card {
+    border-radius: 14px;
+    padding: 1.4rem 1.6rem;
+    margin-top: 0.6rem;
+    border: 1px solid;
+}
 
-    .result-heading {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 0.3rem;
-    }
+.result-card.low-risk {
+    background-color: #eaf7ef;
+    border-color: #bfe3cc;
+}
 
-    .result-heading.low-risk-text {
-        color: #216e46;
-    }
+.result-card.high-risk {
+    background-color: #fbebea;
+    border-color: #f2c4c1;
+}
 
-    .result-heading.high-risk-text {
-        color: #a5322c;
-    }
+.result-heading {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
 
-    .result-caption {
-        color: #55677a;
-        font-size: 0.85rem;
-        margin-top: 0.6rem;
-    }
+.result-heading.low-risk-text {
+    color: #216e46;
+}
 
-    .progress-track {
-        background-color: #e4e9ee;
-        border-radius: 8px;
-        height: 12px;
-        width: 100%;
-        margin-top: 0.5rem;
-        overflow: hidden;
-    }
+.result-heading.high-risk-text {
+    color: #a5322c;
+}
 
-    .progress-fill {
-        height: 100%;
-        border-radius: 8px;
-    }
+.result-caption {
+    color: #55677a;
+    font-size: 0.85rem;
+    margin-top: 0.6rem;
+}
 
-    .progress-fill.low-risk-fill {
-        background-color: #3fa06a;
-    }
+.progress-track {
+    background-color: #e4e9ee;
+    border-radius: 8px;
+    height: 12px;
+    width: 100%;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
 
-    .progress-fill.high-risk-fill {
-        background-color: #d1554d;
-    }
+.progress-fill {
+    height: 100%;
+    border-radius: 8px;
+}
 
-    div.stButton > button {
-        background-color: #1b3a57;
-        color: #ffffff;
-        font-weight: 600;
-        border-radius: 10px;
-        border: none;
-        padding: 0.6rem 1rem;
-    }
+.progress-fill.low-risk-fill {
+    background-color: #3fa06a;
+}
 
-    div.stButton > button:hover {
-        background-color: #2c5578;
-        color: #ffffff;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+.progress-fill.high-risk-fill {
+    background-color: #d1554d;
+}
+
+.next-steps-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    padding: 1.2rem 1.6rem;
+    margin-top: 0.9rem;
+    border: 1px solid #e7edf3;
+}
+
+.next-steps-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1b3a57;
+    margin-bottom: 0.5rem;
+}
+
+.next-steps-card ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: #3a4a5a;
+    font-size: 0.9rem;
+}
+
+.next-steps-card li {
+    margin-bottom: 0.35rem;
+}
+
+.sidebar-card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    border: 1px solid #e7edf3;
+    margin-bottom: 0.9rem;
+}
+
+.sidebar-card-heading {
+    font-weight: 600;
+    color: #1b3a57;
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+    border-left: 3px solid #4a90c4;
+    padding-left: 0.5rem;
+}
+
+.sidebar-card p, .sidebar-card li {
+    color: #55677a;
+    font-size: 0.85rem;
+}
+
+div.stButton > button {
+    background-color: #1b3a57;
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    padding: 0.6rem 1rem;
+}
+
+div.stButton > button:hover {
+    background-color: #2c5578;
+    color: #ffffff;
+}
+</style>
+"""), unsafe_allow_html=True)
 
 ## Load trained model
 @st.cache_resource
@@ -163,16 +228,33 @@ if model is None:
     st.error("Could not find `decision_tree_model.pkl`. Please place the model file alongside this script.")
     st.stop()
 
-## Sidebar - information for the user
+## --------------------------------------------------------------------------
+## Sidebar - restyled into short, scannable cards instead of one text block
+## --------------------------------------------------------------------------
 with st.sidebar:
     logo_path = "logo.png"
     if os.path.exists(logo_path):
         st.image(logo_path, use_container_width=True)
-    st.header("About this app")
-    st.write(
-        "Fill in the patient details on the main page and click "
-        "**Predict Diabetes Risk** to get an instant prediction."
-    )
+
+    st.markdown(textwrap.dedent("""
+        <div class="sidebar-card">
+            <div class="sidebar-card-heading">How it works</div>
+            <p>Fill in the patient details, then select
+            <strong>Predict Diabetes Risk</strong> to get an instant
+            screening result and estimated probability.</p>
+        </div>
+        <div class="sidebar-card">
+            <div class="sidebar-card-heading">About the model</div>
+            <p>This app uses a Decision Tree model trained on health
+            screening data, prioritised to catch as many at-risk cases
+            as possible.</p>
+        </div>
+        <div class="sidebar-card">
+            <div class="sidebar-card-heading">Important note</div>
+            <p>This is a screening tool, not a medical diagnosis. Always
+            confirm results with a qualified healthcare professional.</p>
+        </div>
+    """), unsafe_allow_html=True)
 
 ## Define input options
 genders = ["Female", "Male"]
@@ -189,8 +271,18 @@ col1, col2 = st.columns(2)
 with col1:
     gender_selected = st.selectbox("Gender", genders)
     age_selected = st.number_input(
-        "Age (years)", min_value=0, max_value=80, value=30, step=1
+        "Age (years)", min_value=0, max_value=120, value=30, step=1,
+        help=(
+            "The prediction model was trained on individuals aged up to "
+            "80. Results for ages above 80 are shown, but treat them as "
+            "an extrapolation with more uncertainty."
+        )
     )
+    if age_selected > 80:
+        st.caption(
+            "Note: this model was trained on data up to age 80. "
+            "Results above that age are less reliable."
+        )
     hypertension_selected = st.radio(
         "Does the patient have hypertension?", ["No", "Yes"], horizontal=True
     )
@@ -233,7 +325,7 @@ with col2:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-with st.expander("What do HbA1c and blood glucose mean?"):
+with st.expander("What do HbA1c and blood glucose mean, and where can I get tested?"):
     st.markdown(
         "- **HbA1c (%)** - a blood test result showing your average blood "
         "sugar over roughly the last 2 to 3 months. It's used because a "
@@ -241,7 +333,19 @@ with st.expander("What do HbA1c and blood glucose mean?"):
         "last ate, while HbA1c reflects a longer-term trend.\n"
         "- **Blood glucose (mg/dL)** - the amount of sugar circulating in "
         "your blood at the time of testing. It can rise and fall quickly, "
-        "for example after a meal, so it's a snapshot rather than an average."
+        "for example after a meal, so it's a snapshot rather than an average.\n"
+        "\n"
+        "**Getting these readings in Singapore**\n"
+        "- **HbA1c** is measured through a blood test ordered by a doctor "
+        "- available at GP clinics, polyclinics, or through the "
+        "**Screen for Life** national screening programme (subsidised "
+        "for eligible Singaporeans and PRs). It is not typically "
+        "available as a home self-test.\n"
+        "- **Blood glucose** can also be tested at a clinic or polyclinic, "
+        "or self-tested at home using a glucometer / blood glucose test "
+        "kit, available at pharmacies such as Guardian, Watsons and "
+        "Unity, or online. A home reading is convenient for a quick "
+        "check, but a clinic test is more reliable for medical decisions."
     )
 
 ## Predict button
@@ -306,6 +410,21 @@ if predict_clicked:
                     diabetes_prob = proba[1] if len(proba) > 1 else proba[0]
 
             ## ------------------------------------------------------------------
+            ## Quick recap of what was entered, so the result is easy to trace
+            ## back to the inputs
+            ## ------------------------------------------------------------------
+            summary_html = textwrap.dedent(f"""
+            <div class="summary-row">
+                <div class="summary-chip">Age: {age_selected}</div>
+                <div class="summary-chip">Gender: {gender_selected}</div>
+                <div class="summary-chip">BMI: {bmi_selected:.1f}</div>
+                <div class="summary-chip">HbA1c: {hba1c_selected:.1f}%</div>
+                <div class="summary-chip">Glucose: {glucose_selected} mg/dL</div>
+            </div>
+            """).strip()
+            st.markdown(summary_html, unsafe_allow_html=True)
+
+            ## ------------------------------------------------------------------
             ## Display results as a single styled card (color communicates risk
             ## instead of an emoji)
             ## ------------------------------------------------------------------
@@ -322,28 +441,61 @@ if predict_clicked:
             probability_html = ""
             if diabetes_prob is not None:
                 pct = diabetes_prob * 100
-                probability_html = f"""
-                    <div style="margin-top:0.8rem; font-size:0.9rem; color:#3a4a5a;">
-                        Estimated probability of diabetes: <strong>{pct:.1f}%</strong>
-                    </div>
-                    <div class="progress-track">
-                        <div class="progress-fill {fill_class}" style="width:{pct:.1f}%;"></div>
-                    </div>
-                """
-
-            st.markdown(
-                f"""
-                <div class="result-card {risk_class}">
-                    <div class="result-heading {risk_text_class}">{result_message}</div>
-                    {probability_html}
-                    <div class="result-caption">
-                        This prediction is generated by a machine learning model and
-                        should not be used as a substitute for professional medical diagnosis.
-                    </div>
+                probability_html = textwrap.dedent(f"""
+                <div style="margin-top:0.8rem; font-size:0.9rem; color:#3a4a5a;">
+                    Estimated probability of diabetes: <strong>{pct:.1f}%</strong>
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+                <div class="progress-track">
+                    <div class="progress-fill {fill_class}" style="width:{pct:.1f}%;"></div>
+                </div>
+                """).strip()
+
+            result_html = textwrap.dedent(f"""
+            <div class="result-card {risk_class}">
+                <div class="result-heading {risk_text_class}">{result_message}</div>
+                {probability_html}
+                <div class="result-caption">
+                    This prediction is generated by a machine learning model and
+                    should not be used as a substitute for professional medical diagnosis.
+                </div>
+            </div>
+            """).strip()
+            st.markdown(result_html, unsafe_allow_html=True)
+
+            ## ------------------------------------------------------------------
+            ## What should I do next - guidance tailored to the risk level
+            ## ------------------------------------------------------------------
+            if prediction == 1:
+                next_steps_html = textwrap.dedent("""
+                <div class="next-steps-card">
+                    <div class="next-steps-heading">What should I do next?</div>
+                    <ul>
+                        <li>Arrange a medical assessment with a doctor or
+                        polyclinic to confirm your diabetes status.</li>
+                        <li>Bring these results along to help guide the
+                        conversation with your healthcare provider.</li>
+                        <li>Avoid self-diagnosing or self-medicating based
+                        on this screening result alone.</li>
+                    </ul>
+                </div>
+                """).strip()
+            else:
+                next_steps_html = textwrap.dedent("""
+                <div class="next-steps-card">
+                    <div class="next-steps-heading">What should I do next?</div>
+                    <ul>
+                        <li>Continue maintaining a healthy, balanced diet
+                        and regular physical activity.</li>
+                        <li>Go for routine health screenings, such as
+                        Screen for Life, as recommended for your age
+                        group.</li>
+                        <li>Keep an eye on changes in weight, thirst, or
+                        energy levels, and check in with a doctor if
+                        anything feels off.</li>
+                    </ul>
+                </div>
+                """).strip()
+            st.markdown(next_steps_html, unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"Something went wrong while generating the prediction. Details: {e}")
